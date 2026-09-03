@@ -1,102 +1,49 @@
-import * as SQLite from "expo-sqlite";
-import { useEffect, useState } from "react";
+import { useDatabase } from "@/hooks/useDatabase";
+import { useState } from "react";
 import { Alert, Button, FlatList, Text, TextInput, View } from "react-native";
-interface Persona{
+
+interface Producto{
   id: number;
   nombre:string;
-  apellido:string;
+  descripcion:string;
+  precio:number;
 }
-async function conectarDB() {
-  const db = await SQLite.openDatabaseAsync('ayudantia');
-  await db.execAsync(`
-PRAGMA journal_mode = WAL;
-CREATE TABLE IF NOT EXISTS persona (id INTEGER PRIMARY KEY NOT NULL,
-nombre TEXT NOT NULL, apellido TEXT NOT NULL);
-`);
-  return db;
-}
-function useDatabase() {
-  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
-  useEffect(() => {
-    const iniciarDb = async () => {
-      try {
-        const database = await conectarDB();
-        setDb(database);
-        console.log("Creamos nuestra base de datos :D");
-      }
-      catch (error) {
-        console.error(error)
-      }
-    };
-    iniciarDb();
-  }, []);
-  const createPersona = async (nombre: string, apellido: string) => {
-    if (!db) return;
-    try {
-      const result = await db.runAsync(
-        'INSERT INTO persona (nombre, apellido) VALUES (?,?);',
-        nombre,
-        apellido
-      );
-      return result.lastInsertRowId;
-    }
-    catch (error) {
-      console.error(error)
-    }
-  }
-  const getAllPersonas = async():Promise<Persona[]> =>{
-    if (!db) return [];
-    try{
-      const result = await db.getAllAsync<Persona>('SELECT * FROM persona;');
-      return result;
-    }
-    catch (error) {
-      console.error(error)
-      return [];
-    }
-  }
-  const deletePersona = async (id:number):Promise<boolean>=>{
-    if (!db) return false;
-    try{
-      await db.runAsync('DELETE FROM persona WHERE id = ?;',
-         id);
-         return true;
-    }
-    catch (error) {
-      console.error(error)
-      return false;
-    }
-  }
-  return { db, createPersona, getAllPersonas, deletePersona};
-}
-
 export default function Index() {
   const [nombre, setNombre] = useState("");
-  const [apellido, setApellido] = useState("");
-  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [descripcion, setDescripcion] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [productos, setProductos] = useState<Producto[]>([]);
   const{
-    db, createPersona, getAllPersonas, deletePersona
+    db,
+    createProducto,
+    getAllProductos,
+    deleteProducto
   } = useDatabase();
-  const agregarPersona = async () =>{
-    if(!nombre || !apellido){
+  const agregarProducto = async () =>{
+    if(!nombre || !descripcion || !precio){
       Alert.alert("Error", "Completa los campos");
       return;
     }
-    const id=await createPersona(nombre, apellido);
-    console.log("Persona agregada con id: ", id);
+    const precioNum = parseInt(precio);
+    if(isNaN(precioNum)){
+      Alert.alert("Error", "Completa los campos");
+      return;
+    }
+    const id=await createProducto(nombre, descripcion,precioNum);
+    console.log("Producto agregado con id: ", id);
   }
-  const mostrarPersonas= async ()=>{
-    const resultado = await getAllPersonas();
-    setPersonas(resultado);
+  const mostrarProductos= async ()=>{
+    const resultado = await getAllProductos();
+    setProductos(resultado);
   }
-  const eliminarPersona = async(id:number)=>{
-    const success = await deletePersona(id);
+  const eliminarProductos = async(id:number)=>{
+    const success = await deleteProducto(id);
     if(success){
-      Alert.alert("Exito", "Persona eliminada");
-      await mostrarPersonas();
+      Alert.alert("Exito", "Producto eliminado");
+      await mostrarProductos();
     }
   }
-  mostrarPersonas();
+  mostrarProductos();
   return (
     <View
       style={{
@@ -111,25 +58,33 @@ export default function Index() {
         value={nombre}
         onChangeText={setNombre}
       />
-      <Text>Apellido:</Text>
+      <Text>Descripción:</Text>
       <TextInput
-        placeholder="Ingrese el apellido"
-        value={apellido}
-        onChangeText={setApellido}
+        placeholder="Ingrese la descripción"
+        value={descripcion}
+        onChangeText={setDescripcion}
+      />
+      <Text>Precio:</Text>
+      <TextInput
+        placeholder="Ingrese el precio"
+        value={precio}
+        onChangeText={setPrecio}
+        keyboardType="numeric"
       />
       <Button
-      title="Guardar Persona"
-      onPress={agregarPersona}/>
+      title="Guardar Producto"
+      onPress={agregarProducto}/>
       <FlatList
-        data={personas}
+        data={productos}
         keyExtractor={(item)=> item.id.toString()}
         renderItem={({item})=>(
           <View>
             <Text>Nombre: {item.nombre}</Text>
-            <Text>Apellido: {item.apellido}</Text>
+            <Text>Descripción: {item.descripcion}</Text>
+            <Text>Precio: {item.precio}</Text>
             <Button
-            title = "Eliminar Persona"
-            onPress={()=> {eliminarPersona(item.id)}}/>
+            title = "Eliminar producto"
+            onPress={()=> {eliminarProductos(item.id)}}/>
           </View>
         )}  
       />
